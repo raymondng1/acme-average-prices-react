@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/react@16/umd/react.development.js" ></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js'></script>
+    <title>Update</title>
+
+<style>
+    nav {
+        display: flex;
+        justify-content: space-around;
+    }
+    .selected{
+        border:solid 1px black;
+    }
+    #header{
+        font-size: 2rem;
+    }
+    .boldText{
+        font-weight: bold;
+    }
+
+</style>
+</head>
+<body>
+    <div id="root">
+        root
+    </div>
+
+    <script type="text/babel">
+
+        const {HashRouter, Switch, Link, Route, Redirect } = ReactRouterDOM;
+        const { render } = ReactDOM;
+        const root = document.querySelector('#root');
+
+        const Nav = (props) =>{
+           const path = props.location.pathname;
+           console.log(path)
+            return(
+            <div> 
+                <h1> ACME PRODUCT AVERAGES REACT</h1>
+                <nav>
+                    <Link to='/home' className={path ==='/home' ? 'selected' : ''}> Home </Link>
+                    <Link to='/products' className={path ==='/products' ? 'selected': ''} > Products </Link>
+                </nav>
+            </div>  
+            )
+        }
+
+        const Home = (props) => {
+            return (
+                <div> There are {props.products.length} products </div>
+            )
+        }
+
+        const Products = ({products, companies, offerings}) =>{ 
+            //will return a new array with the mapped IDs of the products with the offerings and companies 
+            const processed = products.map( product => {
+                return {
+                ...product,
+                offerings: offerings.filter( offering => offering.productId === product.id)
+                .map( offering => {
+                    return { ...offering, company: companies.find( company => company.id === offering.companyId) };
+                    })
+                }
+            });
+    
+            const lowPrice = processed.map((product)=>product.offerings.reduce((previousCost,{price})=>(Math.min(price)),0))
+                    
+            return (
+                <div>
+                    <div id="header"> Products </div>
+                    <div> 
+                        {
+                            processed.map((product,idx)=> 
+                            <div key={idx}> 
+                                <div> <span className="boldText"> Product: </span> { product.name } </div> 
+                                <div> <span className="boldText"> Suggested Price: </span> { product.suggestedPrice } </div> 
+                                <div> <span className="boldText">Average Price: </span> {
+                                    Math.round(100* product.offerings.reduce((accumulator,{price})=>(accumulator+price),0)/product.offerings.length)/100 } </div>
+
+                                <div> <span className="boldText">Lowest Price: </span> {
+                                    `${product.offerings.reduce((previousCost,{price})=>(Math.min(price)),0)} offered by: 
+                                    ${product.offerings[0].company.name}`
+
+                                } </div>
+
+                                <hr/>
+                            </div>
+                            )
+                        }
+                    </div>
+                    <hr/> 
+                </div>
+            )
+        }
+
+        const API = 'https://acme-users-api-rev.herokuapp.com/api/'
+
+        class App extends React.Component{
+            constructor(){
+                super();
+                this.state = {
+                    companies: [],
+                    products: [],
+                    offerings:[]
+                }
+            }
+            componentDidMount(){
+                Promise.all(['companies', 'products', 'offerings'].map( entity => axios.get(`${API}${ entity }`)))
+                    .then( responses => responses.map(response => response.data))
+                    .then( ([companies, products, offerings ])=> this.setState({ companies, products, offerings}));
+            }
+            render(){
+                const {companies, products, offerings } = this.state;
+                return (
+                <HashRouter>
+                    <Route component={Nav}/>
+
+                    <Switch> 
+                    <Route path='/home' render= {()=> <Home products = {products} />} />
+                    <Route path='/products' render= {()=> <Products products={products} companies={companies} offerings={offerings} /> } />   
+                    <Redirect to='/home' />
+                    </Switch>
+                </HashRouter>    
+            )
+        }
+    }
+
+    render(<App/>, root)
+
+    </script>
+
+</body>
+</html>
